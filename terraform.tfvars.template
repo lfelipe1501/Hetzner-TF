@@ -1,0 +1,69 @@
+# Hetzner Cloud API Token (required)
+hcloud_token = "your_hetzner_cloud_api_token"
+
+# Number of Ubuntu instances to deploy
+ubuntu_instances_count = 1 # Change this value to deploy more instances
+
+# Enable IPv6
+enable_ipv6 = false # Change this value to true for enable ipv6
+
+# Base IP for automatic assignment
+base_ip = "10.0.1.2"
+
+# SSH Configuration
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+ssh_port = 2255
+
+# Enable or disable SSH password authentication
+ssh_password_authentication = false
+
+# Timezone configuration
+timezone = "UTC"
+
+# User configuration
+username = "admin"
+password = "StrongPassword123!"  # In production, use a more secure method
+
+# Custom hostname (leave empty to use server name)
+hostname = "ubuntu-server"
+
+# Ubuntu servers configuration
+servers = [
+  {
+    name        = "ubuntu-server"
+    server_type = "cpx11"
+    image       = "ubuntu-24.04"
+    location    = "nbg1"
+    use_static_ip = true
+    static_ip   = null
+    labels      = { role = "server" }
+  }
+]
+
+# Project information
+project_name = "my-ubuntu-project"
+environment  = "production"  # Others: staging, development
+
+# Network configuration
+network_cidr = "10.0.0.0/23"
+subnet_cidr  = "10.0.1.0/28"
+network_zone = "eu-central"
+
+# Allowed IPs for SSH (recommended for security)
+allowed_ssh_ips = ["0.0.0.0/0"]  # Replace with your IP for better security
+
+# Firewall configuration
+enable_http = true
+enable_https = true
+
+# Additional custom firewall rules
+custom_firewall_rules = [
+  {
+    enabled    = false
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "8080"
+    source_ips = ["0.0.0.0/0", "::/0"]
+    description = "Alternative port for web applications"
+  }
+] 

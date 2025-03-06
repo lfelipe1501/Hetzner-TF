@@ -1,0 +1,130 @@
+#cloud-config
+
+# Update the system
+package_update: true
+package_upgrade: true
+
+# Install basic packages
+packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - unzip
+  - git
+  - fail2ban
+  - ufw
+  - zip
+  - lsof
+  - strace
+  - htop
+  - nano
+  - rsync
+  - bash-completion
+  - build-essential
+  - ncdu
+  - eza
+  - duf
+  - bat
+  - fzf
+  - neofetch
+
+# Configure timezone
+timezone: ${timezone}
+
+# Configure users
+users:
+  - name: ${username}
+    groups: sudo
+    shell: /bin/bash
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    ssh_authorized_keys:
+      - ${ssh_key}
+
+# Initial configuration scripts
+write_files:
+  - path: /root/setup.sh
+    permissions: '0777'
+    content: |
+      #!/bin/bash
+      
+      # Configuration variables
+      SSHPRT=${ssh_port}
+      newPASS="${password}"
+      
+      # Get timezone from cloud-config
+      TZ=$(cat /etc/timezone)
+      
+      # Configure firewall
+      ufw allow $SSHPRT/tcp comment 'SSH Personalize Port'
+      ufw allow 80/tcp
+      ufw allow 443/tcp
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw --force enable
+      
+      # Configure fail2ban
+      systemctl enable fail2ban
+      systemctl start fail2ban
+      
+      # Set hostname
+      hostnamectl set-hostname ${hostname}
+
+      DEBIAN_FRONTEND=noninteractive
+
+      echo "DEBIAN_FRONTEND=noninteractive" >> /etc/bash.bashrc
+
+      # Configure SSH
+      sed '/Port/s/^#//' -i /etc/ssh/sshd_config
+      sed -i "s/22/$SSHPRT/g" /etc/ssh/sshd_config
+
+      sed '/ListenAddress 0.0.0.0/s/^#//' -i /etc/ssh/sshd_config
+
+      sed -i '/^#PermitRootLogin / s/^#//' /etc/ssh/sshd_config
+
+      sed '/MaxAuthTries/s/^#//' -i /etc/ssh/sshd_config
+      sed -i 's/MaxAuthTries 6/MaxAuthTries 2/g' /etc/ssh/sshd_config
+
+      # Configure SSH password authentication based on the variable
+      %{ if !ssh_password_authentication }
+      sed -i '/^Include \/etc\/ssh\/sshd_config.d\/\*.conf/ s/^/#/' /etc/ssh/sshd_config
+      sed -i '/^#PasswordAuthentication / s/^#//' /etc/ssh/sshd_config
+      sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+      %{ else }
+      echo "PasswordAuthentication yes"
+      %{ endif }
+
+      sed -i '/^#PermitEmptyPasswords / s/^#//' /etc/ssh/sshd_config
+
+      sed '/ClientAliveInterval/s/^#//' -i /etc/ssh/sshd_config
+      sed -i 's/ClientAliveInterval 0/ClientAliveInterval 60/g' /etc/ssh/sshd_config
+
+      # Restart SSH
+      systemctl restart ssh
+
+      # Configure password
+      echo "${username}:$newPASS" | chpasswd
+
+      ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
+      echo $TZ > /etc/timezone
+      
+      # Success message
+      echo "Ubuntu initial configuration completed."
+      echo "Configured timezone: $TZ"
+      echo "Configured user: ${username}"
+      echo "SSH password authentication: %{ if ssh_password_authentication }enabled%{ else }disabled%{ endif }"
+      echo ""
+
+      apt autoremove -y
+      
+      # Restart the server
+      echo "Restarting the server..."
+      reboot
+
+# Final commands to execute
+runcmd:
+  - /root/setup.sh
+  - rm -f /root/setup.sh
+  - touch /root/.cloud-init-complete
+  - echo "Ubuntu server fully configured on $(date)" >> /root/setup-timestamp.log 

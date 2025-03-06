@@ -1,4 +1,5 @@
-# Terraform for Ubuntu on Hetzner Cloud
+# Terraform for Ubuntu on Hetzner Cloud :sunglasses:
+<img src="https://raw.githubusercontent.com/lfelipe1501/lfelipe-projects/master/Terraform/TerraFUbuntu.svg" alt="tfubn-logo" width="256" />
 
 This repository contains Terraform configurations to deploy and manage Ubuntu servers on Hetzner Cloud. It includes automated server setup, network configuration, firewall rules, and SSH security hardening.
 
@@ -35,7 +36,7 @@ This repository contains Terraform configurations to deploy and manage Ubuntu se
 1. Clone this repository:
 
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:lfelipe1501/Hetzner-TF.git
    cd terraform-hetzner-ubuntu
    ```
 

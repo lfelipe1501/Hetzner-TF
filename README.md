@@ -37,7 +37,7 @@ This repository contains Terraform configurations to deploy and manage Ubuntu se
 
    ```bash
    git clone https://github.com/lfelipe1501/Hetzner-TF.git
-   cd terraform-hetzner-ubuntu
+   cd Hetzner-TF
    ```
 
 2. Create your configuration file from the template:

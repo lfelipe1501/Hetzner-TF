@@ -1,7 +1,21 @@
-# SSH key creation
-resource "hcloud_ssh_key" "default" {
-  name       = "ubuntu-key"
-  public_key = file(var.ssh_public_key_path)
+# File existence check for SSH key
+locals {
+  ssh_key_exists = fileexists(pathexpand(var.ssh_public_key_path))
+}
+
+# Data source to fetch existing SSH key (if using existing key)
+data "hcloud_ssh_key" "existing" {
+  count = (!var.ssh_key_create && local.ssh_key_exists) ? 1 : 0
+  name  = var.ssh_key_name
+}
+
+# SSH key creation - for keys that SHOULD be destroyed with terraform destroy
+resource "hcloud_ssh_key" "terraform_managed" {
+  count      = (var.ssh_key_create && local.ssh_key_exists) ? 1 : 0
+  name       = var.ssh_key_name
+  public_key = file(pathexpand(var.ssh_public_key_path))
+  
+  # No prevent_destroy needed as we want these to be destroyed
 }
 
 # Local function to generate incremental IPs
@@ -35,7 +49,11 @@ resource "hcloud_server" "ubuntu_servers" {
   server_type = each.value.server_type
   image       = each.value.image
   location    = each.value.location
-  ssh_keys    = [hcloud_ssh_key.default.id]
+  ssh_keys    = local.ssh_key_exists ? (
+                  var.ssh_key_create ? 
+                  [hcloud_ssh_key.terraform_managed[0].id] : 
+                  [data.hcloud_ssh_key.existing[0].id]
+                ) : []
   
   public_net {
     ipv6_enabled = var.enable_ipv6
@@ -43,12 +61,12 @@ resource "hcloud_server" "ubuntu_servers" {
   
   # Cloud-init for Ubuntu using templatefile() instead of template_file
   user_data = templatefile("${path.module}/scripts/cloud-init-ubuntu.yaml", {
-    ssh_key = file(var.ssh_public_key_path)
+    ssh_key = local.ssh_key_exists ? file(pathexpand(var.ssh_public_key_path)) : ""
     ssh_port = var.ssh_port
     timezone = var.timezone
     username = var.username
     password = var.password
-    ssh_password_authentication = var.ssh_password_authentication
+    ssh_password_authentication = var.ssh_password_authentication || !local.ssh_key_exists
     hostname = var.hostname != "" ? var.hostname : each.value.name
   })
 
@@ -62,8 +80,8 @@ resource "hcloud_server" "ubuntu_servers" {
     }
   )
 
-  # Apply firewall
-  firewall_ids = [hcloud_firewall.ubuntu_firewall.id]
+  # Apply firewall only if enabled
+  firewall_ids = var.enable_firewall ? [hcloud_firewall.ubuntu_firewall[0].id] : []
   
   # Assign to network after it's created
   depends_on = [hcloud_network_subnet.private_subnet]
@@ -94,6 +112,8 @@ resource "hcloud_network_subnet" "private_subnet" {
 
 # Firewall
 resource "hcloud_firewall" "ubuntu_firewall" {
+  count = var.enable_firewall ? 1 : 0
+  
   name = "${var.project_name}-ubuntu-firewall"
 
   # Rule for custom SSH
@@ -152,7 +172,7 @@ resource "time_sleep" "wait_for_cloud_init" {
 
 # Verify cloud-init completion
 resource "null_resource" "check_cloud_init" {
-  for_each = hcloud_server.ubuntu_servers
+  for_each = local.ssh_key_exists ? hcloud_server.ubuntu_servers : {}
   
   depends_on = [
     time_sleep.wait_for_cloud_init,
@@ -166,7 +186,7 @@ resource "null_resource" "check_cloud_init" {
       user        = var.username
       host        = each.value.ipv4_address
       port        = var.ssh_port
-      private_key = file(replace(var.ssh_public_key_path, ".pub", ""))
+      private_key = file(replace(pathexpand(var.ssh_public_key_path), ".pub", ""))
       timeout     = "40s"
     }
 
@@ -174,5 +194,20 @@ resource "null_resource" "check_cloud_init" {
       "cloud-init status --wait || echo 'Cloud-init still running, but connection successful'",
       "echo 'Server ${each.value.name} is ready!'"
     ]
+  }
+}
+
+# Output warning if SSH key file doesn't exist
+resource "null_resource" "ssh_key_warning" {
+  count = local.ssh_key_exists ? 0 : 1
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "⚠️ WARNING: SSH key file not found at ${var.ssh_public_key_path}"
+      echo "Please create an SSH key pair using the following command:"
+      echo "ssh-keygen -t rsa -b 4096 -f ${pathexpand(replace(var.ssh_public_key_path, ".pub", ""))}"
+      echo "After creating the key, you may need to add it manually to your Hetzner Cloud account."
+      echo "Set ssh_key_create=false and ssh_key_name to the name of your manually added key in terraform.tfvars."
+    EOT
   }
 } 

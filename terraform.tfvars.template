@@ -14,6 +14,10 @@ base_ip = "10.0.1.2"
 ssh_public_key_path = "~/.ssh/id_rsa.pub"
 ssh_port = 2255
 
+# SSH key handling
+ssh_key_create = true  # Set to false to use an existing key in Hetzner
+ssh_key_name = "ubuntu-key"  # Name of the key to create or use if existing
+
 # Enable or disable SSH password authentication
 ssh_password_authentication = false
 
@@ -53,6 +57,7 @@ network_zone = "eu-central"
 allowed_ssh_ips = ["0.0.0.0/0"]  # Replace with your IP for better security
 
 # Firewall configuration
+enable_firewall = true
 enable_http = true
 enable_https = true
 

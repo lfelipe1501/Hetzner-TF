@@ -124,6 +124,12 @@ variable "enable_https" {
   default     = true
 }
 
+variable "enable_firewall" {
+  description = "Enable or disable the Hetzner Cloud Firewall"
+  type        = bool
+  default     = true
+}
+
 variable "custom_firewall_rules" {
   description = "Additional custom firewall rules"
   type = list(object({
@@ -147,4 +153,16 @@ variable "hostname" {
   description = "Hostname for the server (if not specified, the server name will be used)"
   type        = string
   default     = ""
+}
+
+variable "ssh_key_create" {
+  description = "Whether to create a new SSH key in Hetzner or use an existing one"
+  type        = bool
+  default     = true
+}
+
+variable "ssh_key_name" {
+  description = "Name of an existing SSH key in Hetzner (used when ssh_key_create is false)"
+  type        = string
+  default     = "ubuntu-key"
 } 
